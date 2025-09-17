@@ -1,0 +1,130 @@
+import numpy as np
+import pandas as pd
+import random
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import silhouette_score
+import joblib
+
+# 1. Problem Tanımlama ve Davranışsal Uzay Analizi Sınıfı
+class DavranissalMekan:
+    def __init__(self, mekan_adi, mekan_boyutlari):
+        self.mekan_adi = mekan_adi
+        self.boyutlar = mekan_boyutlari
+        self.davranissal_uzay = {}
+    
+    def davranis_tanimla(self, davranis_adi, tanim):
+        if davranis_adi not in self.davranissal_uzay:
+            self.davranissal_uzay[davranis_adi] = {
+                'tanim': tanim,
+                'matematiksel_form': None
+            }
+        else:
+            print(f"'{davranis_adi}' davranışı zaten tanımlı.")
+
+    def davranisi_matematiksel_formule_et(self, davranis_adi, formul):
+        if davranis_adi in self.davranissal_uzay:
+            self.davranissal_uzay[davranis_adi]['matematiksel_form'] = formul
+            print(f"'{davranis_adi}' davranışı için matematiksel formül eklendi.")
+        else:
+            print(f"'{davranis_adi}' davranışı tanımlı değil.")
+
+# 2. Veri Toplama ve İşleme Fonksiyonları
+def veri_toplama_simulasyonu(davranis_uzayi, gun_sayisi=7):
+    veri_listesi = []
+    for _ in range(gun_sayisi * 24):
+        zaman_damgasi = pd.Timestamp.now() - pd.Timedelta(hours=random.randint(1, 100))
+        for davranis, detay in davranis_uzayi.items():
+            if random.random() > 0.5:
+                kisi_id = f'K-{random.randint(1, 50)}'
+                sure = random.randint(1, 120)
+                konum_x = random.randint(0, 20)
+                konum_y = random.randint(0, 15)
+                veri_listesi.append([zaman_damgasi, kisi_id, davranis, sure, konum_x, konum_y])
+    df = pd.DataFrame(veri_listesi, columns=['zaman_damgasi', 'kisi_id', 'davranis', 'sure', 'konum_x', 'konum_y'])
+    return df
+
+def veri_temizleme_ve_on_isleme(df):
+    df = df.fillna(0)
+    df = df[df['sure'] < 180] 
+    df_encoded = pd.get_dummies(df, columns=['davranis', 'kisi_id'])
+    return df_encoded
+
+# 3. Model Geliştirme Fonksiyonu
+def modeli_egit(veri_df):
+    X = veri_df[['sure', 'konum_x', 'konum_y']]
+    model_pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('kmeans', KMeans(n_clusters=3, random_state=42, n_init=10)) 
+    ])
+    model_pipeline.fit(X)
+    return model_pipeline
+
+# 4. Model Değerlendirme Fonksiyonu
+def model_degerlendirme(model, veri_df):
+    X = veri_df[['sure', 'konum_x', 'konum_y']]
+    labels = model.predict(X)
+    if len(np.unique(labels)) > 1:
+        score = silhouette_score(X, labels)
+        return score
+    return 0
+
+# 5. Ana Platform Akışı
+def platformu_calistir():
+    print("--- Davranışsal Mekan Analiz Platformu Başlatılıyor ---")
+    
+    # Adım 1: Problem Uzayını Tanımlama
+    ofis_mekani = DavranissalMekan("Açık Ofis Alanı", (20, 15))
+    ofis_mekani.davranis_tanimla("Odaklanma_Davranisi", "Bireylerin masa başında yalnız çalışma süresi.")
+    ofis_mekani.davranis_tanimla("Isbirligi_Davranisi", "Toplantı odasında veya ortak alanda grupla etkileşim süresi.")
+    ofis_mekani.davranisi_matematiksel_formule_et("Odaklanma_Davranisi", "$S_{odak} = \int t_{odak} \cdot f(konum, hareket)$")
+    
+    print("\nAdım 1: Davranışsal Uzay Tanımlandı.")
+    
+    # Adım 2: Veri Toplama ve İşleme
+    print("Adım 2: Ham veri toplanıyor ve işleniyor...")
+    ham_veri_df = veri_toplama_simulasyonu(ofis_mekani.davranissal_uzay)
+    temiz_veri_df = veri_temizleme_ve_on_isleme(ham_veri_df)
+    
+    # Adım 3: Model Geliştirme ve Eğitim
+    print("Adım 3: Model eğitiliyor...")
+    model = modeli_egit(temiz_veri_df)
+    
+    # Adım 4: Model Değerlendirme
+    print("Adım 4: Model değerlendiriliyor...")
+    ilk_skor = model_degerlendirme(model, temiz_veri_df)
+    print(f"Başlangıç Modeli Silhouette Skoru: {ilk_skor:.2f}")
+    
+    # Modeli diske kaydetme
+    joblib.dump(model, 'davranis_modeli.pkl')
+    print("Eğitilmiş model diske kaydedildi: 'davranis_modeli.pkl'")
+    
+    # 5. Dağıtım ve Entegrasyon için API katmanı
+    # (Burada Flask server başlatılmaz, sadece fonksiyonel bir çağrı simüle edilir)
+    print("\nAdım 5: Model dağıtıma hazır.")
+    
+    # 6. Sürekli İzleme ve İyileştirme
+    print("\nAdım 6: Model performansı sürekli izleniyor...")
+    # Yeni veri simülasyonu
+    yeni_ham_veri_df = veri_toplama_simulasyonu(ofis_mekani.davranissal_uzay, gun_sayisi=1)
+    temiz_yeni_veri_df = veri_temizleme_ve_on_isleme(yeni_ham_veri_df)
+    
+    if not temiz_yeni_veri_df.empty:
+        yeni_skor = model_degerlendirme(model, temiz_yeni_veri_df)
+        print(f"Yeni Veri Üzerindeki Model Silhouette Skoru: {yeni_skor:.2f}")
+        
+        # Karar verme mekanizması
+        if yeni_skor < 0.5: # Basit bir eşik değeri
+            print("Model performansında düşüş tespit edildi. Modelin yeniden eğitilmesi gerekiyor.")
+        else:
+            print("Model performansı kabul edilebilir düzeyde.")
+
+if __name__ == "__main__":
+    platformu_calistir()
+
+# --- Yapay Zeka Değerlendirme Algoritmalarının Açıklaması ---
+# Bu platformun kalbinde, insan davranışlarını mekansal ve zamansal metriklerle matematiksel olarak formüle etme ve bu verileri kümeleme algoritmalarıyla analiz etme stratejisi yatmaktadır.
+# Her bir adım, insan davranışsal uzayının daha iyi anlaşılmasını hedefler. Algoritma, veriyi toplar, temizler, davranışsal desenleri öğrenir ve zamanla bu desenlerdeki değişimleri izleyerek kendini adapte eder.
+# Python kodlaması, bu döngüsel süreci otomatikleştiren ve sürekli iyileştirmeye olanak tanıyan bir temel sağlar.
+
